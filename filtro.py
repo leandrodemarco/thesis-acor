@@ -74,10 +74,6 @@ def wheel_selection(P):
 
 # ---------------------------------------------------
 
-
-func_name = 'filtro'
-
-
 # ACOR params
 archive_size = 10
 sample_size = 40
@@ -87,7 +83,6 @@ zeta = 1.0 # Deviation-Distance ratio
 
 # Initialization
 f = open('results.txt', 'w+')
-f.write('COST FUNCTION ' + func_name + '\n')
 # Create Archive Table with archive_size rows and (num_dimensions + 1) columns
 empty_ant = np.empty([num_dimensions + 1])
 archive = npmatlib.repmat(empty_ant, archive_size, 1)
@@ -107,8 +102,6 @@ for i in range(0, archive_size):
             
 # Sort it according to cost
 archive = archive[archive[:,num_dimensions].argsort()]
-#print 'Initial archive:\n', archive
-#raw_input('Enter')
 initial_cost = archive[0][0:num_dimensions]
 f.write('Initial best population: ' + str(initial_cost)  + '\n')
 
@@ -127,7 +120,6 @@ for l in range(0, archive_size):
 
 # Selection probabilities
 p = w / np.sum(w)
-#print 'Selection probs: \n', p
 
 # ACOR Main Loop
 for it in range(0, max_iterations):
@@ -160,8 +152,6 @@ for it in range(0, max_iterations):
         new_population[t][num_dimensions] = cost(new_population[t][0:num_dimensions])
         
     # Merge old population (archive) with new one
-#    print 'New population: \n', new_population
-#    raw_input('Continue')
     merged_pop = np.concatenate([archive, new_population])
     # And sort it again
     merged_pop = merged_pop[merged_pop[:,num_dimensions].argsort()]
