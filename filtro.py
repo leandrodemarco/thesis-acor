@@ -4,6 +4,34 @@ import numpy.matlib as npmatlib
 import math
 import matplotlib.pyplot as plt
 from decimal import Decimal
+from bisect import bisect_left
+
+# Filter constants
+e12_values = [1., 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2]
+    
+e24_values = [1., 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2., 2.2, 2.4, 2.7, 3., \
+              3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, \
+              9.1]
+              
+e96_values = [1., 1.02, 1.05, 1.07, 1.10, 1.13, 1.15, 1.18, 1.21, 1.24,\
+              1.27, 1.30, 1.33, 1.37, 1.40, 1.43, 1.47, 1.50, 1.54, \
+              1.58, 1.62, 1.65, 1.69, 1.74, 1.78, 1.82, 1.87, 1.91, \
+              1.96, 2.00, 2.05, 2.10, 2.15, 2.21, 2.26, 2.32, 2.37, \
+              2.43, 2.49, 2.55, 2.61, 2.67, 2.74, 2.80, 2.87, 2.94, \
+              3.01, 3.09, 3.16, 3.24, 3.32, 3.40, 3.48, 3.57, 3.65, \
+              3.74, 3.83, 3.92, 4.02, 4.12, 4.22, 4.32, 4.42, 4.53, \
+              4.64, 4.75, 4.87, 4.99, 5.11, 5.23, 5.36, 5.49, 5.62, \
+              5.76, 5.90, 6.04, 6.19, 6.34, 6.49, 6.65, 6.81, 6.98, \
+              7.15, 7.32, 7.50, 7.68, 7.87, 8.06, 8.25, 8.45, 8.66, \
+              8.87, 9.09, 9.31, 9.53, 9.76]
+
+res_exps = [3,4,5]
+cap_exps = [-7,-8,-9]
+
+res_vals = [x*(10**y) for x in e24_values for y in res_exps]
+cap_vals = [x*(10**y) for x in e12_values for y in cap_exps]
+res_vals.sort()
+cap_vals.sort()
 
 # Problem definition
 num_dimensions = 4 # R2, R3, C4, C5
@@ -23,15 +51,15 @@ wp = 1000*2*math.pi
 Qp = 1/math.sqrt(2.0)
 invQp=1/Qp
 
-#err = 0.025
-#gmax=(1+err)*gobj
-#gmin=(1-err)*gobj
-#wmax=(1+err)*wp
-#wmin=(1-err)*wp
-#Qmax=(1+err)*Q
-#Qmin=(1-err)*Q
+err = 0.025
+gmax=(1+err)*gobj
+gmin=(1-err)*gobj
+wmax=(1+err)*wp
+wmin=(1-err)*wp
+Qmax=(1+err)*Qp
+Qmin=(1-err)*Qp
 
-
+# AUXILIAR FUNCTIONS
 def format_e(n):
     a = '%E' % n
     return a.split('E')[0].rstrip('0').rstrip('.') + 'E' + a.split('E')[1]
@@ -47,13 +75,51 @@ def wheel_selection(P):
     j = max(0,i-1)
     return j
 
-# ---------------------------------------------------
+def find_discrete_neighbours(cont_val, isRes):
+    vals = res_vals if isRes else cap_vals
+    pos = bisect_left(vals, cont_val)
+    if pos == 0:
+        return [vals[0]]
+    if pos == len(vals):
+        return [vals[-1]]
+    before = vals[pos - 1]
+    after = vals[pos]
+    return [before, after]
+
+def find_discrete_neighbours2(cont_val, isRes):
+    vals = res_vals if isRes else cap_vals
+    pos = bisect_left(vals, cont_val)
+    if pos == 0:
+        return [vals[0], vals[1]]
+    if pos == len(vals):
+        return [vals[-1], vals[-2]]
+    
+    before = [vals[pos - 1]]
+    after = [vals[pos]]
+    if (pos - 2 > 0):
+        before.append(vals[pos-2])
+    if (pos + 1 < len(vals)):
+        after.append(vals[pos+1])
+    return before + after
+
+def get_sol_info(r1, r2, r3, c4, c5):
+    a = r1/r2
+    b = r1/r3
+    g = 1/a
+    sens = (2 + abs(1-a+b) + abs(1+a-b))/(2*(1+a+b))
+    omega = math.sqrt(a*b/(c4*c5))/r1
+    invq = math.sqrt(c5/(c4*a*b))*(1+a+b)
+    
+    return (sens, g, 1./invq, omega)
+
+# END AUXILIAR FUNCTIONS
+
 
 # ACOR params
 archive_size = 10
 sample_size = 40
-max_iterations = 100
-q = 0.5 # Intensification factor
+max_iterations = 200
+int_factor = 0.5 # Intensification factor
 zeta = 1.0 # Deviation-Distance ratio
 
 def mainLoop(R1):
@@ -113,8 +179,8 @@ def mainLoop(R1):
     # Weights array
     w = np.empty([archive_size])
     for l in range(0, archive_size):
-        f_factor = 1/(math.sqrt(2*math.pi)*q*archive_size)
-        s_factor = math.exp(-0.5*(l/(q*archive_size))**2)
+        f_factor = 1/(math.sqrt(2*math.pi)*int_factor*archive_size)
+        s_factor = math.exp(-0.5*(l/(int_factor*archive_size))**2)
         w[l] = f_factor * s_factor
     
     # Selection probabilities
@@ -166,39 +232,53 @@ def mainLoop(R1):
     
     initial_cost = archive[0][0:num_dimensions]
     f.write('Final best population: ' + str(initial_cost)  + '\n')
+    
+    neighbours = []
+    neighbours.append(find_discrete_neighbours2(r1, True))
+    k = 0
+    for filter_comp in archive[0][0:num_dimensions]:
+        isRes = k < 2
+        this_neighbours = find_discrete_neighbours2(filter_comp, isRes)
+        k += 1
+        neighbours.append(this_neighbours)
+
     f.close()
     
-    plt.figure(figsize=(10,10))
-    plt.yscale('log')
-    plt.plot(range(1, max_iterations+1), best_cost)
-    plt.savefig('foo.png')
-    plt.show()
+#    plt.figure(figsize=(10,10))
+#    plt.yscale('log')
+#    plt.plot(range(1, max_iterations+1), best_cost)
+#    plt.savefig('foo.png')
+#    plt.show()
     
-e12_values = [1., 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2]
-    
-e24_values = [1., 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2, 2.2, 2.4, 2.7, 3, \
-              3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, \
-              9.1]
-              
-e96_values = [1., 1.02, 1.05, 1.07, 1.10, 1.13, 1.15, 1.18, 1.21, 1.24,\
-              1.27, 1.30, 1.33, 1.37, 1.40, 1.43, 1.47, 1.50, 1.54, \
-              1.58, 1.62, 1.65, 1.69, 1.74, 1.78, 1.82, 1.87, 1.91, \
-              1.96, 2.00, 2.05, 2.10, 2.15, 2.21, 2.26, 2.32, 2.37, \
-              2.43, 2.49, 2.55, 2.61, 2.67, 2.74, 2.80, 2.87, 2.94, \
-              3.01, 3.09, 3.16, 3.24, 3.32, 3.40, 3.48, 3.57, 3.65, \
-              3.74, 3.83, 3.92, 4.02, 4.12, 4.22, 4.32, 4.42, 4.53, \
-              4.64, 4.75, 4.87, 4.99, 5.11, 5.23, 5.36, 5.49, 5.62, \
-              5.76, 5.90, 6.04, 6.19, 6.34, 6.49, 6.65, 6.81, 6.98, \
-              7.15, 7.32, 7.50, 7.68, 7.87, 8.06, 8.25, 8.45, 8.66, \
-              8.87, 9.09, 9.31, 9.53, 9.76]
+    return neighbours
 
-res_exps = [3,4,5]
-cap_exps = [-7,-8,-9]
-
-res_vals = [x*(10**y) for x in e24_values for y in res_exps]
-cap_vals = [x*(10**y) for x in e12_values for y in cap_exps]
-res_vals.sort()
-cap_vals.sort()
-l = [11000, 82000]
-for r1 in l:
-    mainLoop(r1)
+f = open('final_solutions.txt', 'w+')
+r1_vals = res_vals
+all_sols = []
+for r1 in r1_vals:
+    print 'Running loop for R1 = ', r1
+    discrete_neighbours = mainLoop(r1)
+#    print discrete_neighbours
+#    raw_input('Continue')
+    for _r1 in discrete_neighbours[0]:
+        for r2 in discrete_neighbours[1]:
+            for r3 in discrete_neighbours[2]:
+                for c4 in discrete_neighbours[3]:
+                    for c5 in discrete_neighbours[4]:
+                        tempt_sol = [_r1, r2, r3, c4, c5]
+                        (sens, g, q, w) = get_sol_info(_r1, r2, r3, c4, c5)
+    #                    print 'Sol: ', r1,r2,r3,c4,c5
+    #                    print 'Sens: ', sens
+    #                    print gmin, g, gmax
+    #                    print Qmin, q, Qmax
+    #                    print wmin, w, wmax
+    #                    print '\n\n'
+    #                    raw_input('Continue')
+                        gOk = g > gmin and g < gmax
+                        qOk = q > Qmin and q < Qmax
+                        wOk = w > wmin and w < wmax
+                        if (sens < 1 and gOk and qOk and wOk and not tempt_sol in all_sols):
+                            all_sols.append(tempt_sol)
+                            sol_str = [format_e(Decimal(x)) for x in tempt_sol]
+                            f.write(str(tempt_sol)+'\t'+str(sens)+'\n')
+f.close()
