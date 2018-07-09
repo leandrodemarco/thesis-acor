@@ -4,7 +4,6 @@ import numpy.matlib as npmatlib
 import math
 import matplotlib.pyplot as plt
 from decimal import Decimal
-from bisect import bisect_left
 
 # Filter constants
 e12_values = [1., 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2]
@@ -34,7 +33,7 @@ res_vals.sort()
 cap_vals.sort()
 
 # Problem definition
-num_dimensions = 4 # R2, R3, C4, C5
+num_dimensions = 5 # R2, R3, C4, C5
 cap_min = 1e-9
 cap_max = 8.2e-7
 res_min = 1e3
@@ -75,33 +74,6 @@ def wheel_selection(P):
     j = max(0,i-1)
     return j
 
-def find_discrete_neighbours(cont_val, isRes):
-    vals = res_vals if isRes else cap_vals
-    pos = bisect_left(vals, cont_val)
-    if pos == 0:
-        return [vals[0]]
-    if pos == len(vals):
-        return [vals[-1]]
-    before = vals[pos - 1]
-    after = vals[pos]
-    return [before, after]
-
-def find_discrete_neighbours2(cont_val, isRes):
-    vals = res_vals if isRes else cap_vals
-    pos = bisect_left(vals, cont_val)
-    if pos == 0:
-        return [vals[0], vals[1]]
-    if pos == len(vals):
-        return [vals[-1], vals[-2]]
-    
-    before = [vals[pos - 1]]
-    after = [vals[pos]]
-    if (pos - 2 > 0):
-        before.append(vals[pos-2])
-    if (pos + 1 < len(vals)):
-        after.append(vals[pos+1])
-    return before + after
-
 def get_sol_info(r1, r2, r3, c4, c5):
     a = r1/r2
     b = r1/r3
@@ -122,11 +94,11 @@ max_iterations = 200
 int_factor = 0.5 # Intensification factor
 zeta = 1.0 # Deviation-Distance ratio
 
-def mainLoop(R1):
+def mainLoop(it):
     # ---------------- COST FUNCTION -------------------
     def cost(arr):
-        r1=R1
-        r2, r3, c4, c5 = arr[0], arr[1], arr[2], arr[3]
+        print arr
+        r1, r2, r3, c4, c5 = arr[0], arr[1], arr[2], arr[3], arr[4]
         r2_range_OK = r2 > res_min and r2 < res_max
         r3_range_OK = r3 > res_min and r3 < res_max
         c4_range_OK = c4 > cap_min and c4 < cap_max
@@ -146,16 +118,15 @@ def mainLoop(R1):
         # ---------------- END COST FUNCTION -------------------
     
     # Initialization
-    filename = 'results_' + str(int(R1)) + '.txt'
+    filename = 'results_' + str(it) + '.txt'
     f = open(filename, 'w+')
     # Create Archive Table with archive_size rows and (num_dimensions + 1) columns
     empty_ant = np.empty([num_dimensions + 1])
     archive = npmatlib.repmat(empty_ant, archive_size, 1)
-    
     #Initialize archive, right now it contains garbage
     for i in range(0, archive_size):
         for j in range(0,  num_dimensions + 1):
-            if (j < 2):
+            if (j < 3):
                 # Resistor
                 archive[i][j] = np.random.uniform(res_min, res_max)
             elif (j < num_dimensions):
@@ -167,9 +138,8 @@ def mainLoop(R1):
                 
     # Sort it according to cost
     archive = archive[archive[:,num_dimensions].argsort()]
-    initial_cost = archive[0][0:num_dimensions]
-    f.write('Initial best population: ' + str(initial_cost)  + '\n')
-    
+    initial_pop = archive[0][0:num_dimensions]
+    f.write('Initial best population: ' + str(initial_pop)  + '\n')
     
     
     best_sol = archive[0][0:num_dimensions]
@@ -230,18 +200,9 @@ def mainLoop(R1):
         f.write('  best solution: ' + str(best_sol)  + '\n')
         f.write('  cost best solution: ' + str(best_cost[it])  + '\n')
     
-    initial_cost = archive[0][0:num_dimensions]
-    f.write('Final best population: ' + str(initial_cost)  + '\n')
+    final_pop = archive[0][0:num_dimensions]
+    f.write('Final best population: ' + str(final_pop)  + '\n')
     
-    neighbours = []
-    neighbours.append(find_discrete_neighbours2(r1, True))
-    k = 0
-    for filter_comp in archive[0][0:num_dimensions]:
-        isRes = k < 2
-        this_neighbours = find_discrete_neighbours2(filter_comp, isRes)
-        k += 1
-        neighbours.append(this_neighbours)
-
     f.close()
     
 #    plt.figure(figsize=(10,10))
@@ -249,36 +210,7 @@ def mainLoop(R1):
 #    plt.plot(range(1, max_iterations+1), best_cost)
 #    plt.savefig('foo.png')
 #    plt.show()
-    
-    return neighbours
 
-f = open('final_solutions.txt', 'w+')
-r1_vals = res_vals
-all_sols = []
-for r1 in r1_vals:
-    print 'Running loop for R1 = ', r1
-    discrete_neighbours = mainLoop(r1)
-#    print discrete_neighbours
-#    raw_input('Continue')
-    for _r1 in discrete_neighbours[0]:
-        for r2 in discrete_neighbours[1]:
-            for r3 in discrete_neighbours[2]:
-                for c4 in discrete_neighbours[3]:
-                    for c5 in discrete_neighbours[4]:
-                        tempt_sol = [_r1, r2, r3, c4, c5]
-                        (sens, g, q, w) = get_sol_info(_r1, r2, r3, c4, c5)
-    #                    print 'Sol: ', r1,r2,r3,c4,c5
-    #                    print 'Sens: ', sens
-    #                    print gmin, g, gmax
-    #                    print Qmin, q, Qmax
-    #                    print wmin, w, wmax
-    #                    print '\n\n'
-    #                    raw_input('Continue')
-                        gOk = g > gmin and g < gmax
-                        qOk = q > Qmin and q < Qmax
-                        wOk = w > wmin and w < wmax
-                        if (sens < 1 and gOk and qOk and wOk and not tempt_sol in all_sols):
-                            all_sols.append(tempt_sol)
-                            sol_str = [format_e(Decimal(x)) for x in tempt_sol]
-                            f.write(str(tempt_sol)+'\t'+str(sens)+'\n')
-f.close()
+num_runs = 20
+for i in range(0, num_runs):
+    mainLoop(i)
