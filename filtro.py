@@ -97,7 +97,6 @@ zeta = 1.0 # Deviation-Distance ratio
 def mainLoop(it):
     # ---------------- COST FUNCTION -------------------
     def cost(arr):
-        print arr
         r1, r2, r3, c4, c5 = arr[0], arr[1], arr[2], arr[3], arr[4]
         r2_range_OK = r2 > res_min and r2 < res_max
         r3_range_OK = r3 > res_min and r3 < res_max
@@ -135,12 +134,11 @@ def mainLoop(it):
             else:
                 # Cost
                 archive[i][j] = cost(archive[i][0:num_dimensions])
-                
+
     # Sort it according to cost
     archive = archive[archive[:,num_dimensions].argsort()]
     initial_pop = archive[0][0:num_dimensions]
-    f.write('Initial best population: ' + str(initial_pop)  + '\n')
-    
+    f.write('Initial best population: ' + str(initial_pop) + '\n')
     
     best_sol = archive[0][0:num_dimensions]
     # Array to hold best cost solutions
@@ -176,12 +174,11 @@ def mainLoop(it):
         # Initialize solution for each new ant
         for t in range(0, sample_size):
             new_population[t][0:num_dimensions] = np.zeros([num_dimensions])
-            
             for i in range(0, num_dimensions):
                 # Select Gaussian Kernel
-                l = wheel_selection(p)
+                g = wheel_selection(p)
                 # Generate Gaussian Random Variable
-                new_population[t][i] = s[l][i] + sigma[l][i]*np.random.randn()
+                new_population[t][i] = s[g][i] + sigma[g][i]*np.random.randn()
                 
             # Evaluation
             new_population[t][num_dimensions] = cost(new_population[t][0:num_dimensions])
@@ -196,9 +193,9 @@ def mainLoop(it):
         best_cost[it] = archive[0][num_dimensions]
         
         # Show iteration info
-        f.write('Iteration %i, best cost found %s\n' % (it, format_e(Decimal(best_cost[it]))))
-        f.write('  best solution: ' + str(best_sol)  + '\n')
-        f.write('  cost best solution: ' + str(best_cost[it])  + '\n')
+        f.write('Iteration %i:\nbest cost found %s\n' % (it, format_e(Decimal(best_cost[it]))))
+        f.write('best solution: ' + str(best_sol)  + '\n')
+        f.write('cost best solution: ' + str(best_cost[it])  + '\n-------\n')
     
     final_pop = archive[0][0:num_dimensions]
     f.write('Final best population: ' + str(final_pop)  + '\n')
