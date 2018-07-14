@@ -90,19 +90,21 @@ def get_sol_info(r1, r2, r3, c4, c5):
 # ACOR params
 archive_size = 10
 sample_size = 40
-max_iterations = 200
+max_iterations = 300
 int_factor = 0.5 # Intensification factor
 zeta = 1.0 # Deviation-Distance ratio
 
 def mainLoop(it):
+    print 'Running loop: ', it
     # ---------------- COST FUNCTION -------------------
     def cost(arr):
         r1, r2, r3, c4, c5 = arr[0], arr[1], arr[2], arr[3], arr[4]
+        r1_range_OK = r1 > res_min and r1 < res_max
         r2_range_OK = r2 > res_min and r2 < res_max
         r3_range_OK = r3 > res_min and r3 < res_max
         c4_range_OK = c4 > cap_min and c4 < cap_max
         c5_range_OK = c5 > cap_min and c5 < cap_max
-        if r2_range_OK and r3_range_OK and c4_range_OK  and c5_range_OK:
+        if r1_range_OK and r2_range_OK and r3_range_OK and c4_range_OK  and c5_range_OK:
             a = r1/r2
             b = r1/r3
             ganancia = 1/a
@@ -201,12 +203,6 @@ def mainLoop(it):
     f.write('Final best population: ' + str(final_pop)  + '\n')
     
     f.close()
-    
-#    plt.figure(figsize=(10,10))
-#    plt.yscale('log')
-#    plt.plot(range(1, max_iterations+1), best_cost)
-#    plt.savefig('foo.png')
-#    plt.show()
 
 num_runs = 20
 for i in range(0, num_runs):
