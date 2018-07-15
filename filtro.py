@@ -90,7 +90,7 @@ def get_sol_info(r1, r2, r3, c4, c5):
 # ACOR params
 archive_size = 10
 sample_size = 40
-max_iterations = 300
+max_iterations = 1000
 int_factor = 0.5 # Intensification factor
 zeta = 1.0 # Deviation-Distance ratio
 
@@ -196,14 +196,22 @@ def mainLoop(it):
         
         # Show iteration info
         f.write('Iteration %i:\nbest cost found %s\n' % (it, format_e(Decimal(best_cost[it]))))
-        f.write('best solution: ' + str(best_sol)  + '\n')
+        f.write('best solution: ' + str(best_sol) +  '\n')
         f.write('cost best solution: ' + str(best_cost[it])  + '\n-------\n')
     
     final_pop = archive[0][0:num_dimensions]
     f.write('Final best population: ' + str(final_pop)  + '\n')
-    
     f.close()
+    _r1, _r2, _r3, _c4, _c5 = final_pop
+    sens  = get_sol_info(_r1, _r2, _r3, _c4, _c5)[0]
+    return best_cost, sens
 
-num_runs = 20
+
+num_runs = 5
 for i in range(0, num_runs):
-    mainLoop(i)
+    costs, sens = mainLoop(i)
+    print costs[-1], sens
+    plt.plot(range(0, max_iterations), costs)
+    
+plt.savefig('5juntas.png')
+plt.show()
