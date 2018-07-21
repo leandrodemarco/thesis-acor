@@ -33,6 +33,7 @@ cap_vals = [x*(10**y) for x in e12_values for y in cap_exps]
 res_vals.sort()
 cap_vals.sort()
 
+
 # Problem definition
 num_dimensions = 4 # R2, R3, C4, C5
 cap_min = 1e-9
@@ -243,23 +244,18 @@ def mainLoop(R1):
         neighbours.append(this_neighbours)
 
     f.close()
-    
-#    plt.figure(figsize=(10,10))
-#    plt.yscale('log')
-#    plt.plot(range(1, max_iterations+1), best_cost)
-#    plt.savefig('foo.png')
-#    plt.show()
-    
     return neighbours
 
 f = open('final_solutions.txt', 'w+')
 r1_vals = res_vals
+sensitivities = {} #Store min sens found for each r1
+r1_found = []
+r1_notfound = []
 all_sols = []
 for r1 in r1_vals:
+    thisr1_sens = float("inf")
     print 'Running loop for R1 = ', r1
     discrete_neighbours = mainLoop(r1)
-#    print discrete_neighbours
-#    raw_input('Continue')
     for _r1 in discrete_neighbours[0]:
         for r2 in discrete_neighbours[1]:
             for r3 in discrete_neighbours[2]:
@@ -267,18 +263,28 @@ for r1 in r1_vals:
                     for c5 in discrete_neighbours[4]:
                         tempt_sol = [_r1, r2, r3, c4, c5]
                         (sens, g, q, w) = get_sol_info(_r1, r2, r3, c4, c5)
-    #                    print 'Sol: ', r1,r2,r3,c4,c5
-    #                    print 'Sens: ', sens
-    #                    print gmin, g, gmax
-    #                    print Qmin, q, Qmax
-    #                    print wmin, w, wmax
-    #                    print '\n\n'
-    #                    raw_input('Continue')
                         gOk = g > gmin and g < gmax
                         qOk = q > Qmin and q < Qmax
                         wOk = w > wmin and w < wmax
+                        if (gOk and qOk and wOk and sens < thisr1_sens):
+                            thisr1_sens = sens
                         if (sens < 1 and gOk and qOk and wOk and not tempt_sol in all_sols):
                             all_sols.append(tempt_sol)
                             sol_str = [format_e(Decimal(x)) for x in tempt_sol]
                             f.write(str(tempt_sol)+'\t'+str(sens)+'\n')
+    if (thisr1_sens != float("inf")):
+        sensitivities[r1] = thisr1_sens
+        r1_found.append(r1)
+    else:
+        r1_notfound.append(r1)
+
+print sensitivities, len(sensitivities)
+plt.figure(figsize=(10,10))
+plt.xscale('log')
+sens_const = np.full(len(res_vals), 0.75)
+plt.plot(res_vals, sens_const, 'g-', sensitivities.keys(), sensitivities.values(), 'ro')
+plt.savefig('sensibilidadVecinos.png')
+plt.show()
+print 'Found solutions for R1: ', r1_found
+print 'Could not find solutions for R1: ', r1_notfound
 f.close()
