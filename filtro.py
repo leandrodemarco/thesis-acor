@@ -2,37 +2,8 @@
 import numpy as np
 import numpy.matlib as npmatlib
 import math
-import matplotlib.pyplot as plt
-from decimal import Decimal
-from bisect import bisect_left
-
-# Filter constants
-e12_values = [1., 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2]
-    
-e24_values = [1., 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2., 2.2, 2.4, 2.7, 3., \
-              3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, \
-              9.1]
-              
-e96_values = [1., 1.02, 1.05, 1.07, 1.10, 1.13, 1.15, 1.18, 1.21, 1.24,\
-              1.27, 1.30, 1.33, 1.37, 1.40, 1.43, 1.47, 1.50, 1.54, \
-              1.58, 1.62, 1.65, 1.69, 1.74, 1.78, 1.82, 1.87, 1.91, \
-              1.96, 2.00, 2.05, 2.10, 2.15, 2.21, 2.26, 2.32, 2.37, \
-              2.43, 2.49, 2.55, 2.61, 2.67, 2.74, 2.80, 2.87, 2.94, \
-              3.01, 3.09, 3.16, 3.24, 3.32, 3.40, 3.48, 3.57, 3.65, \
-              3.74, 3.83, 3.92, 4.02, 4.12, 4.22, 4.32, 4.42, 4.53, \
-              4.64, 4.75, 4.87, 4.99, 5.11, 5.23, 5.36, 5.49, 5.62, \
-              5.76, 5.90, 6.04, 6.19, 6.34, 6.49, 6.65, 6.81, 6.98, \
-              7.15, 7.32, 7.50, 7.68, 7.87, 8.06, 8.25, 8.45, 8.66, \
-              8.87, 9.09, 9.31, 9.53, 9.76]
-
-res_exps = [3,4,5]
-cap_exps = [-7,-8,-9]
-
-res_vals = [x*(10**y) for x in e24_values for y in res_exps]
-cap_vals = [x*(10**y) for x in e12_values for y in cap_exps]
-res_vals.sort()
-cap_vals.sort()
-
+from Utils import gobj,wp,Qp,invQp,wheel_selection,res_vals,cap_vals, \
+                  get_sol_info, is_sol, is_soft_sol
 
 # Problem definition
 num_dimensions = 4 # R2, R3, C4, C5
@@ -46,12 +17,6 @@ rlambda = 100000.0
 rlambda_w = 100.0
 rlambda_q = 100.0
 
-# Target (desired) values for gain, omega and Q
-gobj = 3.0
-wp = 1000*2*math.pi
-Qp = 1/math.sqrt(2.0)
-invQp=1/Qp
-
 err = 0.025
 gmax=(1+err)*gobj
 gmin=(1-err)*gobj
@@ -59,61 +24,6 @@ wmax=(1+err)*wp
 wmin=(1-err)*wp
 Qmax=(1+err)*Qp
 Qmin=(1-err)*Qp
-
-# AUXILIAR FUNCTIONS
-def format_e(n):
-    a = '%E' % n
-    return a.split('E')[0].rstrip('0').rstrip('.') + 'E' + a.split('E')[1]
-       
-
-def wheel_selection(P):
-    r = np.random.uniform()
-    C = np.cumsum(P)
-    for i in range(0, len(C)):
-        if C[i] > r:
-            break
-        
-    j = max(0,i-1)
-    return j
-
-def find_discrete_neighbours(cont_val, isRes):
-    vals = res_vals if isRes else cap_vals
-    pos = bisect_left(vals, cont_val)
-    if pos == 0:
-        return [vals[0]]
-    if pos == len(vals):
-        return [vals[-1]]
-    before = vals[pos - 1]
-    after = vals[pos]
-    return [before, after]
-
-def find_discrete_neighbours2(cont_val, isRes):
-    vals = res_vals if isRes else cap_vals
-    pos = bisect_left(vals, cont_val)
-    if pos == 0:
-        return [vals[0], vals[1]]
-    if pos == len(vals):
-        return [vals[-1], vals[-2]]
-    
-    before = [vals[pos - 1]]
-    after = [vals[pos]]
-    if (pos - 2 > 0):
-        before.append(vals[pos-2])
-    if (pos + 1 < len(vals)):
-        after.append(vals[pos+1])
-    return before + after
-
-def get_sol_info(r1, r2, r3, c4, c5):
-    a = r1/r2
-    b = r1/r3
-    g = 1/a
-    sens = (2 + abs(1-a+b) + abs(1+a-b))/(2*(1+a+b))
-    omega = math.sqrt(a*b/(c4*c5))/r1
-    invq = math.sqrt(c5/(c4*a*b))*(1+a+b)
-    
-    return (sens, g, 1./invq, omega)
-
-# END AUXILIAR FUNCTIONS
 
 
 # ACOR params
@@ -146,9 +56,6 @@ def mainLoop(R1):
         return costo
         # ---------------- END COST FUNCTION -------------------
     
-    # Initialization
-    filename = 'results_' + str(int(R1)) + '.txt'
-    f = open(filename, 'w+')
     # Create Archive Table with archive_size rows and (num_dimensions + 1) columns
     empty_ant = np.empty([num_dimensions + 1])
     archive = npmatlib.repmat(empty_ant, archive_size, 1)
@@ -168,12 +75,8 @@ def mainLoop(R1):
                 
     # Sort it according to cost
     archive = archive[archive[:,num_dimensions].argsort()]
-    initial_cost = archive[0][0:num_dimensions]
-    f.write('Initial best population: ' + str(initial_cost)  + '\n')
     
-    
-    
-    best_sol = archive[0][0:num_dimensions]
+    #best_sol = archive[0][0:num_dimensions]
     # Array to hold best cost solutions
     best_cost = np.zeros([max_iterations])
     
@@ -212,7 +115,13 @@ def mainLoop(R1):
                 # Select Gaussian Kernel
                 l = wheel_selection(p)
                 # Generate Gaussian Random Variable
-                new_population[t][i] = s[l][i] + sigma[l][i]*np.random.randn()
+                aux = s[l][i] + sigma[l][i]*np.random.randn()
+                if (i < 2):
+                    # Resistor
+                    new_population[t][i] = res_vals[(np.abs(res_vals - aux)).argmin()]
+                else:
+                    # Capacitor
+                    new_population[t][i] = cap_vals[(np.abs(cap_vals - aux)).argmin()]
                 
             # Evaluation
             new_population[t][num_dimensions] = cost(new_population[t][0:num_dimensions])
@@ -223,68 +132,50 @@ def mainLoop(R1):
         merged_pop = merged_pop[merged_pop[:,num_dimensions].argsort()]
         # Store the bests in the archive and update best sol
         archive = merged_pop[:archive_size]
-        best_sol = archive[0][0:num_dimensions]
+        #best_sol = archive[0][0:num_dimensions]
         best_cost[it] = archive[0][num_dimensions]
         
         # Show iteration info
-        f.write('Iteration %i, best cost found %s\n' % (it, format_e(Decimal(best_cost[it]))))
-        f.write('  best solution: ' + str(best_sol)  + '\n')
-        f.write('  cost best solution: ' + str(best_cost[it])  + '\n')
+        # f.write('Iteration %i, best cost found %s\n' % (it, format_e(Decimal(best_cost[it]))))
+        # f.write('  best solution: ' + str(best_sol)  + '\n')
+        # f.write('  cost best solution: ' + str(best_cost[it])  + '\n')
     
-    initial_cost = archive[0][0:num_dimensions]
-    f.write('Final best population: ' + str(initial_cost)  + '\n')
+    return archive[0] # Best population and cost
+
+filename = 'results_discretoFijo.txt'
+f = open(filename, 'w+')
+iterations_per_rval = 50
+soft_sols = {}
+hard_sols = {}
+for R1 in res_vals:
+    hard_sols_found = 0
+    soft_sols_found = 0
+    soft_sols[R1] = set()
+    hard_sols[R1] = set()
+    f.write("Results for R1 = %i\n" % R1)
+    for i in range(0, iterations_per_rval):
+        print "Running iter %i for R1=%i" % (i, R1)
+        best_sol = mainLoop(R1)
+        r2, r3, c4, c5 = best_sol[0], best_sol[1], best_sol[2], best_sol[3]
+        sens = get_sol_info(R1, r2, r3, c4, c5)[0]
+        isSol = is_sol(R1, r2, r3, c4, c5)
+        isSoftSol = is_soft_sol(R1,r2,r3,c4,c5)
+        f.write("%i: %s\tSens: %.5f" % (i, str(best_sol), sens))
+        if (isSol):
+            hard_sols[R1].add((R1,r2,r3,c4,c5))
+            hard_sols_found += 1
+            f.write(" ES HARD SOLUCION")
+        elif (isSoftSol):
+            soft_sols[R1].add((R1,r2,r3,c4,c5))
+            soft_sols_found += 1
+            f.write(" ES SOFT SOLUCION")
+        
+        f.write("\n")
+    f.write("ITERS WITH HARD FOUND SOLS: %i----------------------------\n" % hard_sols_found)
+    for h_sol in hard_sols[R1]:
+        f.write(str(h_sol) + "\n")
+    f.write("ITERS WITH SOFT FOUND SOLS: %i----------------------------\n" % soft_sols_found)
+    for s_sol in soft_sols[R1]:
+        f.write(str(s_sol) + "\n")
+    f.write("---------------------------------------\n")
     
-    neighbours = []
-    neighbours.append(find_discrete_neighbours2(r1, True))
-    k = 0
-    for filter_comp in archive[0][0:num_dimensions]:
-        isRes = k < 2
-        this_neighbours = find_discrete_neighbours2(filter_comp, isRes)
-        k += 1
-        neighbours.append(this_neighbours)
-
-    f.close()
-    return neighbours
-
-f = open('final_solutions.txt', 'w+')
-r1_vals = res_vals
-sensitivities = {} #Store min sens found for each r1
-r1_found = []
-r1_notfound = []
-all_sols = []
-for r1 in r1_vals:
-    thisr1_sens = float("inf")
-    print 'Running loop for R1 = ', r1
-    discrete_neighbours = mainLoop(r1)
-    for _r1 in discrete_neighbours[0]:
-        for r2 in discrete_neighbours[1]:
-            for r3 in discrete_neighbours[2]:
-                for c4 in discrete_neighbours[3]:
-                    for c5 in discrete_neighbours[4]:
-                        tempt_sol = [_r1, r2, r3, c4, c5]
-                        (sens, g, q, w) = get_sol_info(_r1, r2, r3, c4, c5)
-                        gOk = g > gmin and g < gmax
-                        qOk = q > Qmin and q < Qmax
-                        wOk = w > wmin and w < wmax
-                        if (gOk and qOk and wOk and sens < thisr1_sens):
-                            thisr1_sens = sens
-                        if (sens < 1 and gOk and qOk and wOk and not tempt_sol in all_sols):
-                            all_sols.append(tempt_sol)
-                            sol_str = [format_e(Decimal(x)) for x in tempt_sol]
-                            f.write(str(tempt_sol)+'\t'+str(sens)+'\n')
-    if (thisr1_sens != float("inf")):
-        sensitivities[r1] = thisr1_sens
-        r1_found.append(r1)
-    else:
-        r1_notfound.append(r1)
-
-print sensitivities, len(sensitivities)
-plt.figure(figsize=(10,10))
-plt.xscale('log')
-sens_const = np.full(len(res_vals), 0.75)
-plt.plot(res_vals, sens_const, 'g-', sensitivities.keys(), sensitivities.values(), 'ro')
-plt.savefig('sensibilidadVecinos.png')
-plt.show()
-print 'Found solutions for R1: ', r1_found
-print 'Could not find solutions for R1: ', r1_notfound
-f.close()
