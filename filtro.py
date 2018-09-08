@@ -3,7 +3,6 @@ import numpy as np
 import numpy.matlib as npmatlib
 import math
 import matplotlib.pyplot as plt
-from decimal import Decimal
 
 # Filter constants
 e12_values = [1., 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2]
@@ -41,8 +40,9 @@ res_max = 9.1e5
 
 # Penalizing factors for gain, omega and Q
 rlambda = 100000.0
-rlambda_w = 100.0
-rlambda_q = 100.0
+rlambda_w = 10.0
+rlambda_q = 10.0
+rlambda_s = 100.0
 
 # Target (desired) values for gain, omega and Q
 gobj = 3.0
@@ -110,7 +110,7 @@ def cost(arr):
         sensibilidad = (2 + abs(1-a+b) + abs(1+a-b))/(2*(1+a+b))
         omega = math.sqrt(a*b/(c4*c5))/r1
         invq = math.sqrt(c5/(c4*a*b))*(1+a+b)
-        costo = 1000*(sensibilidad-0.75)**2 + rlambda*(ganancia - gobj)**2 + rlambda_w*(math.log(omega/wp))**2 + rlambda_q*(math.log(invq/invQp))**2
+        costo = rlambda_s*sensibilidad**2 + rlambda*(ganancia - gobj)**2 + rlambda_w*(math.log(omega/wp))**2 + rlambda_q*(math.log(invq/invQp))**2
     else:
         # Heavily penalize configurations that are not in the specified range
         costo = 1.0e11
@@ -212,46 +212,92 @@ sens  = get_sol_info(best_sol)[0]
 print best_cost[-1], sens
 
 # ---------------- PLOT -------------------
-plt.figure(figsize=(8,8))
+#plt.figure(figsize=(8,8))
+#plt.yscale('log')
+#
+#plt.plot(range(1, max_iterations+1), best_cost)
+#plt.ylabel('Costo')
+#plt.xlabel('Iteraciones')
+#plt.savefig('Costo.png')
+#plt.show()
+#
+#plt.figure(figsize=(8,8))
+#plt.plot(range(1, max_iterations+1), best_r1)
+#plt.ylabel('R1')
+#plt.xlabel('Iteraciones')
+#plt.savefig('R1.png')
+#plt.show()
+#
+#plt.figure(figsize=(8,8))
+#plt.plot(range(1, max_iterations+1), best_r2)
+#plt.ylabel('R2')
+#plt.xlabel('Iteraciones')
+#plt.savefig('R2.png')
+#plt.show()
+#
+#plt.figure(figsize=(8,8))
+#plt.plot(range(1, max_iterations+1), best_r3)
+#plt.ylabel('R3')
+#plt.xlabel('Iteraciones')
+#plt.savefig('R3.png')
+#plt.show()
+#
+#plt.figure(figsize=(8,8))
+#plt.plot(range(1, max_iterations+1), best_c4)
+#plt.ylabel('C4')
+#plt.xlabel('Iteraciones')
+#plt.savefig('C4.png')
+#plt.show()
+#
+#plt.figure(figsize=(8,8))
+#plt.plot(range(1, max_iterations+1), best_c5)
+#plt.ylabel('C5')
+#plt.xlabel('Iteraciones')
+#plt.savefig('C5.png')
+#plt.show()
+
+plt.figure(figsize=(15,15))
+
+plt.subplot(3,2,1)
 plt.yscale('log')
-
-plt.plot(range(1, max_iterations+1), best_cost)
-plt.ylabel('Costo')
-plt.xlabel('Iteraciones')
-plt.savefig('Costo.png')
-plt.show()
-
-plt.figure(figsize=(8,8))
 plt.plot(range(1, max_iterations+1), best_r1)
-plt.ylabel('R1')
-plt.xlabel('Iteraciones')
-plt.savefig('R1.png')
-plt.show()
+plt.title('R1')
+#plt.ylabel('R1')
 
-plt.figure(figsize=(8,8))
-plt.plot(range(1, max_iterations+1), best_r2)
-plt.ylabel('R2')
-plt.xlabel('Iteraciones')
-plt.savefig('R2.png')
-plt.show()
-
-plt.figure(figsize=(8,8))
-plt.plot(range(1, max_iterations+1), best_r3)
-plt.ylabel('R3')
-plt.xlabel('Iteraciones')
-plt.savefig('R3.png')
-plt.show()
-
-plt.figure(figsize=(8,8))
+plt.subplot(3,2, 2)
+plt.yscale('log')
 plt.plot(range(1, max_iterations+1), best_c4)
-plt.ylabel('C4')
-plt.xlabel('Iteraciones')
-plt.savefig('C4.png')
-plt.show()
+plt.title('C4')
+#plt.xlabel('time (s)')
+#plt.ylabel('C4')
 
-plt.figure(figsize=(8,8))
+plt.subplot(3,2, 3)
+plt.yscale('log')
+plt.plot(range(1, max_iterations+1), best_r2)
+plt.title('R2')
+#plt.xlabel('time (s)')
+#plt.ylabel('R2')
+
+plt.subplot(3,2, 4)
+plt.yscale('log')
 plt.plot(range(1, max_iterations+1), best_c5)
-plt.ylabel('C5')
-plt.xlabel('Iteraciones')
-plt.savefig('C5.png')
+plt.title('C5')
+#plt.xlabel('time (s)')
+#plt.ylabel('C5')
+
+plt.subplot(3,2, 5)
+plt.yscale('log')
+plt.plot(range(1, max_iterations+1), best_r3)
+plt.title('R3')
+#plt.xlabel('time (s)')
+#plt.ylabel('R3')
+
+plt.subplot(3, 2, 6)
+plt.yscale('log')
+plt.plot(range(1, max_iterations+1), best_cost)
+plt.title('Costo')
+#plt.ylabel('Costo')
+
+plt.savefig('foo-completo.png')
+
 plt.show()
